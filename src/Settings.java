@@ -33,6 +33,7 @@ public class Settings {
 					get_value_by_key("image_directory", settings, fstNode);
 					get_value_by_key("csv_file", settings, fstNode);
 					get_value_by_key("log_file", settings, fstNode);					
+					get_value_by_key("history_file", settings, fstNode);					
 				}	
 			}
 
