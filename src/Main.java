@@ -2,28 +2,30 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
-
 public class Main {
-	public static String image_directory = "/Users/fnc/Pictures/";
-	public static String image_directory_proccesed = image_directory + "processed/";
-	public static String csv_file = "/Users/fnc/Pictures/csv_file.csv";
+	public static String image_directory = "";
+	public static String csv_file = "";
+	public static String log_file = "";
 
 	public static List<String> listFilesInDir(String dirname) {
 		File dir = new File(dirname);
 		List<String> result = new ArrayList<String>();
 		for(String s : dir.list()) {
 			s = s.toLowerCase();
-			if(s.endsWith("jpg")) {
+			if(s.endsWith("jpg") || s.endsWith("jpeg")) {
 				result.add(s);
 			}
 		}
 		return result;
+	}
+
+	public static String basePath() {
+		return new File(Main.class.getProtectionDomain().getCodeSource().getLocation().getPath())+"/";
 	}
 
 	public static boolean doesExist(String filename) {
@@ -31,51 +33,12 @@ public class Main {
 		return file.exists();
 	}
 
-	public static void moveFile(String from_file, String to, String new_file_name) {
-		File file = new File(from_file);
-		File dir = new File(to);
-		boolean success = file.renameTo(new File(dir, new_file_name));
-	}
-
 	public static void processFiles() throws IOException, SQLException {
-		DB db = new DB();
-
-
 		for(String s : Main.listFilesInDir(image_directory)) {
 			String file_name = s.split("\\.")[0];
 			String file_extension = s.split("\\.")[1];
-
-
-			try {
-
-
-				Statement select = db.conn.createStatement();
-				ResultSet result = select.executeQuery("SELECT * FROM employee WHERE objectid="+file_name);
-
-				while(result.next()) {
-					try {
-						String pnr = result.getString("personnelnr");
-
-
-						writeToCSV(pnr, image_directory_proccesed+pnr+"."+file_extension);
-
-						System.out.println(image_directory+file_name+"."+file_extension);
-						System.out.println(image_directory_proccesed+ pnr+".jpg");
-						
-						moveFile(image_directory+file_name+"."+file_extension, image_directory_proccesed, pnr+".jpg");	
-					
-					
-					} catch (Exception e) {
-						System.out.println(e);
-					}
-				}		
-			} catch(Exception e) {
-				System.out.println(e);
-			}
+			writeToCSV(file_name, image_directory+file_name+"."+file_extension);						
 		}	
-
-		db.conn.close();
-
 	}
 
 	public static void writeToCSV(String personellnr, String image) throws IOException {
@@ -90,17 +53,43 @@ public class Main {
 		String s = "23,1,,,,,,"+personellnr+",,,,,,,,,,,,,,,,"+image+",,,,,,,,,,,,,,,,,,,,,,,,,,\n";
 		out.write(s); 
 		out.close(); 	
+
+		Main.writeToLog(s);
+		
+	}
+
+	public static void writeToLog(String msg) throws IOException {
+		File f = new File(log_file);
+
+		if(!f.exists()) { 
+			f.createNewFile();	
+		}
+
+		BufferedWriter out = new BufferedWriter(new FileWriter(log_file, true)); 
+		Date date = new Date();
+		out.write(date + " | " + msg + "\n"); 
+		out.close(); 
+
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {
 
+		String settingsLocation = "settings.xml";
+		try {
+			settingsLocation = args[0];
+		}
+		catch(Exception e) {}
+		
+		Settings settings = new Settings(settingsLocation);
+
+		image_directory = settings.settings.get("image_directory");
+		csv_file = settings.settings.get("csv_file");
+		log_file = settings.settings.get("log_file");
 
 		if(!doesExist(csv_file)) {
 			Main.processFiles()	;
-			System.out.println("Processing files");
-		}
-		else {
-			System.out.println("Nedap not done");
+		} else {
+			Main.writeToLog("CSV-file still there, Nedap not done");
 		}
 	}
 }
